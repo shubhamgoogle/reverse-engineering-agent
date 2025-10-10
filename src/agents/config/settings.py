@@ -67,8 +67,8 @@ class Settings(BaseSettings):
     ARTIFACT_GCS_BUCKET: str = Field(..., env="ARTIFACT_GCS_BUCKET")
     SESSION_DB_URL: str = Field(..., env="SESSION_DB_URL")
     # SERVICE_ACCOUNT: str = Field(..., env="SERVICE_ACCOUNT")
-    RAW_SQL_EXTRACTS_DATASET: str = Field("gdm", env="RAW_SQL_EXTRACTS_DATASET")
-    RAW_SQL_EXTRACTS_TABLE: str = Field("raw_sql_extracts", env="RAW_SQL_EXTRACTS_TABLE")
+    REA_SQL_EXTRACTS_DATASET: str = Field("gdm", env="REA_SQL_EXTRACTS_DATASET")
+    REA_SQL_EXTRACTS_TABLE: str = Field("rea_sql_extracts", env="REA_SQL_EXTRACTS_TABLE")
 
     # RAW_DATA_BUCKET: str = Field(..., env="RAW_DATA_BUCKET")
     # DOCUMENTS_FOLDER: str = Field(..., env="DOCUMENTS_FOLDER")

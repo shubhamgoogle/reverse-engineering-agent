@@ -14,7 +14,7 @@ def get_bq_client():
         print(f"Could not connect to BigQuery. Please check your GCP authentication. Error: {e}")
         return None
 
-def insert_sql_extract_to_bq(sql_id: str, raw_sql_text: str, parser_output: dict, processing_status: str):
+def insert_sql_extract_to_bq(sql_id: str, sql_file_name: str, raw_sql_text: str, parser_output: dict,application_name:str, processing_status: str):
     """Inserts a record into the raw_sql_extracts table."""
     print("Inserting record into BigQuery...")
     client = get_bq_client()
@@ -23,14 +23,16 @@ def insert_sql_extract_to_bq(sql_id: str, raw_sql_text: str, parser_output: dict
         return False
 
     config = Settings.get_settings()
-    table_id = f"{config.PROJECT_ID}.{config.RAW_SQL_EXTRACTS_DATASET}.{config.RAW_SQL_EXTRACTS_TABLE}"
+    table_id = f"{config.PROJECT_ID}.{config.REA_SQL_EXTRACTS_DATASET}.{config.REA_SQL_EXTRACTS_TABLE}"
 
     rows_to_insert = [
         {
             "sql_id": sql_id,
+            "sql_file_name": sql_file_name,
             "raw_sql_text": raw_sql_text,
             "parser_output": json.dumps(parser_output),
             "processing_status": processing_status,
+            "application_name":application_name,
             "inserted_at": datetime.now(timezone.utc).isoformat(),
         }
     ]
@@ -51,3 +53,40 @@ def insert_sql_extract_to_bq(sql_id: str, raw_sql_text: str, parser_output: dict
     except Exception as e:
         print(f"An error occurred during the BigQuery insert operation: {e}")
         return False
+
+def fetch_from_bq(application_name:str):
+    """Fetches all records from the raw_sql_extracts table."""
+    print(f"Fetching records from BigQuery for application_name:{application_name} ...")
+    client = get_bq_client()
+    if not client:
+        print("BigQuery client not available. Skipping fetch.")
+        return []
+
+    config = Settings.get_settings()
+    table_id = f"{config.PROJECT_ID}.{config.REA_SQL_EXTRACTS_DATASET}.{config.REA_SQL_EXTRACTS_TABLE}"
+
+    query = f"""
+    SELECT sql_file_name,parser_output
+    FROM `{table_id}`
+    WHERE application_name = @application_name
+    ORDER BY inserted_at DESC
+    """
+
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("application_name", "STRING", application_name)
+        ]
+    )
+
+    try:
+        query_job = client.query(query, job_config=job_config)
+        results = query_job.result()
+        records = [dict(row) for row in results]
+        print(f"Fetched {len(records)} records from BigQuery.")
+        return records
+    except NotFound:
+        print(f"Table {table_id} not found. Please create it.")
+        return []
+    except Exception as e:
+        print(f"An error occurred during the BigQuery fetch operation: {e}")
+        return []

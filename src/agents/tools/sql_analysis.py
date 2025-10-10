@@ -29,7 +29,7 @@ safety_settings = [
     ),
 ]
 
-def extract_sql_details(sql_query):
+def extract_sql_details(sql_query, application_name: str,sql_file_name:str):
     sql_id = str(uuid.uuid4())
     # try:
         
@@ -128,9 +128,11 @@ def extract_sql_details(sql_query):
     # Insert into BigQuery
     insert_sql_extract_to_bq(
         sql_id=sql_id,
+        sql_file_name=sql_file_name,
         raw_sql_text=sql_query,
         parser_output=parser_output,
-        processing_status=processing_status
+        processing_status=processing_status,
+        application_name=application_name,
     )
     
     return parser_output
