@@ -7,7 +7,7 @@ from pydantic import BaseModel
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.agents.tools.sql_analysis import extract_sql_details
-from src.agents.tools.create_data_model import get_sql_json_from_bq
+from src.agents.tools.create_data_model import get_sql_json_from_bq, create_data_model_from_bq
 
 # Set a default config path before importing settings
 # This is crucial for the settings module to find the configuration file.
@@ -58,6 +58,20 @@ async def get_data_model(request: DataModelRequest):
         # This function now fetches data from BQ and returns it
         data_model_result = get_sql_json_from_bq(application_name=request.application_name)
         return data_model_result
+    except Exception as e:
+        # Catch potential exceptions and return a proper HTTP error
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/create-data-model", summary="Create a consolidated data model from BigQuery records")
+async def create_data_model(request: DataModelRequest):
+    """
+    Accepts an application name, fetches all its SQL parser outputs from BigQuery,
+    and uses a generative model to create a consolidated data model.
+    """
+    try:
+        # This function fetches records and generates a new data model
+        consolidated_model = create_data_model_from_bq(application_name=request.application_name)
+        return consolidated_model
     except Exception as e:
         # Catch potential exceptions and return a proper HTTP error
         raise HTTPException(status_code=500, detail=str(e))

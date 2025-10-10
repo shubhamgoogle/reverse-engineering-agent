@@ -1,6 +1,8 @@
 import streamlit as st
 import requests
 import io
+from pyvis.network import Network
+import streamlit.components.v1 as components
 
 # Configuration for the backend API
 API_BASE_URL = "http://127.0.0.1:8000"
@@ -115,11 +117,103 @@ def show_data_model_page():
                 except Exception as e:
                     st.error(f"An unexpected error occurred: {e}")
 
+def create_interactive_graph(data_models: list):
+    """
+    Creates an interactive pyvis graph from the consolidated data model.
+    """
+    net = Network(height="750px", width="100%", bgcolor="#222222", font_color="white", notebook=True, cdn_resources="in_line")
+
+    added_nodes = set()
+
+    for model in data_models:
+        # Add entities as nodes
+        for entity in model.get("entities", []):
+            entity_name = entity.get("name")
+            if entity_name and entity_name not in added_nodes:
+                attributes = entity.get("attributes", [])
+                title = f"<b>{entity_name}</b><br>Attributes: {', '.join(attributes)}"
+                net.add_node(entity_name, label=entity_name, title=title)
+                added_nodes.add(entity_name)
+
+        # Add relationships as solid edges
+        for rel in model.get("relationships", []):
+            source = rel.get("from")
+            target = rel.get("to")
+            if source and target:
+                # Ensure nodes exist before adding an edge
+                if source not in added_nodes: net.add_node(source, label=source); added_nodes.add(source)
+                if target not in added_nodes: net.add_node(target, label=target); added_nodes.add(target)
+                
+                rel_type = rel.get("type", "RELATIONSHIP")
+                details = rel.get("details", "")
+                net.add_edge(source, target, title=f"{rel_type}: {details}", label=rel_type)
+
+        # Add lineage as dashed edges
+        for lin in model.get("lineage", []):
+            source = lin.get("source")
+            target = lin.get("target")
+            if source and target:
+                # Ensure nodes exist before adding an edge
+                if source not in added_nodes: net.add_node(source, label=source); added_nodes.add(source)
+                if target not in added_nodes: net.add_node(target, label=target); added_nodes.add(target)
+
+                transformation = lin.get("transformation", "LINEAGE")
+                net.add_edge(source, target, title=transformation, dashes=True, color="#00ff00", label="lineage")
+
+    # Generate the HTML file in memory
+    net.show("graph.html")
+    with open("graph.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+    
+    return html_content
+
+def show_consolidated_model_page():
+    """
+    Displays the page for generating a consolidated data model from all SQL
+    analysis results for a given application.
+    """
+    st.title("Generate Consolidated Data Model")
+    st.write(
+        "This page fetches all individual SQL analysis results for an application from BigQuery "
+        "and uses a generative model to create a single, consolidated data model."
+    )
+
+    application_name = st.text_input(
+        "Enter Application Name to generate its consolidated data model",
+        key="consolidated_model_app_name"
+    )
+
+    if st.button("Generate Consolidated Model"):
+        if not application_name:
+            st.warning("Please enter an Application Name.")
+        else:
+            with st.spinner(f"Generating consolidated model for `{application_name}`... This may take a moment."):
+                try:
+                    payload = {"application_name": application_name}
+                    response = requests.post(f"{API_BASE_URL}/create-data-model", json=payload)
+
+                    if response.status_code == 200:
+                        result = response.json()
+                        data_models = result.get("results")
+                        if data_models:
+                            st.success(f"Successfully generated model for `{application_name}`.")
+                            html_content = create_interactive_graph(data_models)
+                            components.html(html_content, height=800)
+                        else:
+                            st.info("The model generation resulted in no data. This could be due to no records found or an issue during processing.")
+                    else:
+                        st.error(f"Error generating model. Status code: {response.status_code}")
+                        st.json(response.json())
+                except Exception as e:
+                    st.error(f"An unexpected error occurred: {e}")
+
 # --- Main App Navigation ---
 st.sidebar.title("Reverse Engineering Agent")
-page = st.sidebar.radio("Choose a page", ["SQL File Analysis", "View Data Model"])
+page = st.sidebar.radio("Choose a page", ["SQL File Analysis", "View Data Model", "Generate Consolidated Data Model"])
 
 if page == "SQL File Analysis":
     show_sql_analysis_page()
 elif page == "View Data Model":
     show_data_model_page()
+elif page == "Generate Consolidated Data Model":
+    show_consolidated_model_page()
