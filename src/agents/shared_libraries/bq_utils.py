@@ -2,7 +2,7 @@ from google.cloud import bigquery
 from google.api_core.exceptions import NotFound
 from datetime import datetime, timezone
 import json
-from config.settings import Settings
+from src.agents.config.settings import Settings
 
 def get_bq_client():
     """Initializes the BigQuery client."""

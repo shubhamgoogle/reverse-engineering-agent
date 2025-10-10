@@ -1,14 +1,14 @@
-from glob import glob
+import glob
 import base64, json
 import vertexai
 from vertexai.generative_models import GenerativeModel, Part, SafetySetting
 import pandas as pd
-from google.cloud import storage
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from config.settings import Settings
+from src.agents.config.settings import Settings
 import uuid
-from agents.shared_libraries.bq_utils import insert_sql_extract_to_bq
+from src.agents.shared_libraries.bq_utils import insert_sql_extract_to_bq
+import sys
 
 safety_settings = [
     SafetySetting(
@@ -103,7 +103,6 @@ def extract_sql_details(sql_query):
 """
         
     generation_config = {
-        "max_output_tokens": 8192,
         "temperature": 1,
         "top_p": 0.9,
     }
@@ -115,13 +114,15 @@ def extract_sql_details(sql_query):
     )
     
     response_text = responses.text.replace("```","" ).replace("json","")
+    print("Response from model:")
+    print(response_text)
     
     try:
         # Validate JSON
         parser_output = json.loads(response_text)
         processing_status = "NEW"
-    except json.JSONDecodeError:
-        parser_output = {{"error": "Invalid JSON response from model", "response_text": response_text}}
+    except json.JSONDecodeError as e:
+        parser_output = {"error": "Invalid JSON response from model", "details": str(e), "response_text": response_text}
         processing_status = "ERROR"
 
     # Insert into BigQuery
@@ -132,10 +133,12 @@ def extract_sql_details(sql_query):
         processing_status=processing_status
     )
     
-    return response_text
+    return parser_output
 
-def main():
+def analyze_sqls():
     queries_folder = "data/queries"
+    # Ensure the queries folder exists before trying to create files in it
+    os.makedirs(queries_folder, exist_ok=True)
     completed_file = os.path.join(queries_folder, "completed_sql_files.txt")
 
     # Ensure completed_sql_files.txt exists
@@ -167,13 +170,18 @@ def main():
                     # print(sql_analysis_output)  # For debugging purposes
                     with open(completed_file, "a") as f:
                         f.write(sql_filename + "\n")
-                    f.close()
+                    # The 'with' statement handles closing the file, so f.close() is redundant.
                 except Exception as e:
-                    print(f"Error for {sql_filename}: {e}")
+                    # If the exception object 'e' is a dictionary (e.g., from a custom error source),
+                    # it needs to be converted to a string for printing to avoid 'unhashable type: dict'.
+                    if isinstance(e, dict):
+                        print(f"Error for {sql_filename}: {json.dumps(e)}")
+                    else:
+                        print(f"Error for {sql_filename}: {e}")
             else:
                 print(f"{sql_filename} is empty.")
     else:
         print("No SQL files found in the queries folder.")
 
 if __name__ == "__main__":
-    main()
+    analyze_sqls()

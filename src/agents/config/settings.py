@@ -17,17 +17,11 @@ def get_yaml_file():
     """
     Get the env file path from the CONFIG_PATH environment variable.
     """
-
-    if "CONFIG_PATH" in os.environ:
-        CONFIG_PATH = os.getenv("CONFIG_PATH")
-    else:
-        raise Exception(
-            "CONFIG_PATH not found in the environment variables. Please"
-            " set CONFIG_PATH to a .yaml file in the following format:"
-            " config/{USECASE_ID}/{ENV}.yaml"
-        )
-
-    return CONFIG_PATH
+    # Get CONFIG_PATH from environment, or use 'config.yaml' as a default.
+    # The path should be relative to the project root where you run the script.
+    config_path = os.getenv("CONFIG_PATH", "config.yaml")
+    
+    return config_path
 
 
 class Settings(BaseSettings):
