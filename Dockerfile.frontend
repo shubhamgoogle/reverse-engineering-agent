@@ -1,0 +1,20 @@
+# Use an official Python runtime as a parent image
+FROM python:3.11-slim
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Install poetry
+RUN pip install poetry
+
+# Copy only requirements to cache them
+COPY poetry.lock pyproject.toml ./
+
+# Install dependencies
+RUN poetry config virtualenvs.create false && poetry install  --no-root
+
+# Copy the rest ofthe application
+COPY . .
+
+# Command to run the Streamlit app. PORT is automatically set by Cloud Run.
+CMD ["streamlit", "run", "src/frontend/app.py", "--server.enableCORS", "false", "--server.enableXsrfProtection", "false"]

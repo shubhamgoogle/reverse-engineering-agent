@@ -1,0 +1,12 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'build-frontend'
+  args:
+  - 'build'
+  - '--tag'
+  - 'gcr.io/$PROJECT_ID/reverse-engineering-agent-frontend'
+  - '--file'
+  - 'Dockerfile.frontend'
+  - '.'
+images:
+- 'gcr.io/$PROJECT_ID/reverse-engineering-agent-frontend'

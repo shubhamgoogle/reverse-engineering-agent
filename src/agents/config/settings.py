@@ -61,11 +61,11 @@ class Settings(BaseSettings):
 
     # ---------- VARIABLES FROM ENV.SH FILE ----------
     PROJECT_ID: str = Field("semantic-layer-poc-470809", env="PROJECT_ID")
-    PROJECT_NUMBER: int = Field(..., env="PROJECT_NUMBER")
-    REGION: str = Field(..., env="REGION")
-    RUN_AGENT_WITH_DEBUG: bool = Field(..., env="RUN_AGENT_WITH_DEBUG")
-    ARTIFACT_GCS_BUCKET: str = Field(..., env="ARTIFACT_GCS_BUCKET")
-    SESSION_DB_URL: str = Field(..., env="SESSION_DB_URL")
+    PROJECT_NUMBER: int = Field(172009895677, env="PROJECT_NUMBER")
+    REGION: str = Field("us-central1", env="REGION")
+    RUN_AGENT_WITH_DEBUG: bool = Field(False, env="RUN_AGENT_WITH_DEBUG")
+    ARTIFACT_GCS_BUCKET: str = Field("rev-eng-bkt", env="ARTIFACT_GCS_BUCKET")
+    SESSION_DB_URL: str = Field("sqlite:///./sessions.db", env="SESSION_DB_URL")
     # SERVICE_ACCOUNT: str = Field(..., env="SERVICE_ACCOUNT")
     REA_SQL_EXTRACTS_DATASET: str = Field("gdm", env="REA_SQL_EXTRACTS_DATASET")
     REA_SQL_EXTRACTS_TABLE: str = Field("rea_sql_extracts", env="REA_SQL_EXTRACTS_TABLE")
