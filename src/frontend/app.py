@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import io
 import os
+import json
 from pyvis.network import Network
 import streamlit.components.v1 as components
 
@@ -202,6 +203,14 @@ def show_consolidated_model_page():
                         if data_models:
                             st.success(f"Successfully generated model for `{application_name}`.")
                             html_content = create_interactive_graph(data_models)
+
+                            # Add a download button for the JSON data
+                            st.download_button(
+                                label="Download Data Model as JSON",
+                                data=json.dumps(data_models, indent=2),
+                                file_name=f"{application_name}_consolidated_model.json",
+                                mime="application/json",
+                            )
                             components.html(html_content, height=800)
                         else:
                             st.info("The model generation resulted in no data. This could be due to no records found or an issue during processing.")

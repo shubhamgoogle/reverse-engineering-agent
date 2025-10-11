@@ -48,6 +48,6 @@ gcloud run deploy ${FRONTEND_APP} \
   --region ${REGION} \
   --allow-unauthenticated \
   --port 8501 \
-  --set-env-vars="API_BASE_URL=${API_URL}"
+  --set-env-vars="API_BASE_URL=https://reverse-engineering-agent-api-172009895677.us-central1.run.app"
 
 echo "Deployment complete."

@@ -33,24 +33,30 @@ def create_data_model_from_bq(application_name: str) -> dict:
             if not parser_output:
                 continue
 
-            prompt = (
-                "Given the following JSON data representing SQL information, extract all entities, their attributes, "
-                "and the relationships among them (including data lineage if possible). "
-                "Return a single JSON object with the following structure:\n"
-                "{\n"
-                "  \"entities\": [\n"
-                "    {\"name\": \"EntityName\", \"attributes\": [\"attr1\", \"attr2\", ...]}\n"
-                "  ],\n"
-                "  \"relationships\": [\n"
-                "    {\"from\": \"EntityA\", \"to\": \"EntityB\", \"type\": \"relationship_type\", \"details\": \"...\"}\n"
-                "  ],\n"
-                "  \"lineage\": [\n"
-                "    {\"source\": \"EntityA\", \"target\": \"EntityB\", \"transformation\": \"...\"}\n"
-                "  ]\n"
-                "}\n"
-                "Only return the JSON object, no explanation or extra formatting.\n\n"
-                f"Input:\n{parser_output}"
-            )
+            prompt = f"""
+            Given the following JSON data from a Teradata SQL script, extract the core data model.
+
+            **CRITICAL INSTRUCTIONS:**
+            1.  **IGNORE AUDIT/METADATA:** You MUST exclude any entities that appear to be for auditing, logging, or metadata purposes. Common patterns to ignore include tables with names containing `_LOG`, `_AUDIT`, `_ERR`, `_TMP`, `_WORK`, or volatile tables. Focus only on entities that represent core business concepts.
+            2.  **Extract Core Model:** Identify the primary entities, their attributes, and the relationships between them.
+            3.  **Structure Output:** Return a single, clean JSON object with the following structure. Do not include any explanations or surrounding text.
+
+            **Output JSON Structure:**
+            {{
+              "entities": [
+                {{"name": "CoreBusinessEntityName", "attributes": ["attr1", "attr2", ...]}}
+              ],
+              "relationships": [
+                {{"from": "EntityA", "to": "EntityB", "type": "relationship_type", "details": "..."}}
+              ],
+              "lineage": [
+                {{"source": "SourceEntity", "target": "TargetEntity", "transformation": "..."}}
+              ]
+            }}
+
+            **Input JSON:**
+            {parser_output}
+            """
             response = model.generate_content(prompt)
             response_text = response.text.strip().strip("` \n")
             if response_text.startswith("json"):
