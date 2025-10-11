@@ -187,31 +187,30 @@ def show_consolidated_model_page():
         "Enter Application Name to generate its consolidated data model",
         key="consolidated_model_app_name"
     )
-
+    
+    # Reset state if application name changes
+    if 'app_name' not in st.session_state or st.session_state.app_name != application_name:
+        st.session_state.app_name = application_name
+        st.session_state.data_models = None
+        st.session_state.html_content = None
+        
     if st.button("Generate Consolidated Model"):
         if not application_name:
             st.warning("Please enter an Application Name.")
         else:
             with st.spinner(f"Generating consolidated model for `{application_name}`... This may take a moment."):
+                st.session_state.data_models = None # Clear previous results
+                st.session_state.html_content = None
                 try:
                     payload = {"application_name": application_name}
                     response = requests.post(f"{API_BASE_URL}/create-data-model", json=payload)
 
                     if response.status_code == 200:
                         result = response.json()
-                        data_models = result.get("results")
-                        if data_models:
+                        st.session_state.data_models = result.get("results")
+                        if st.session_state.data_models:
                             st.success(f"Successfully generated model for `{application_name}`.")
-                            html_content = create_interactive_graph(data_models)
-
-                            # Add a download button for the JSON data
-                            st.download_button(
-                                label="Download Data Model as JSON",
-                                data=json.dumps(data_models, indent=2),
-                                file_name=f"{application_name}_consolidated_model.json",
-                                mime="application/json",
-                            )
-                            components.html(html_content, height=800)
+                            st.session_state.html_content = create_interactive_graph(st.session_state.data_models)
                         else:
                             st.info("The model generation resulted in no data. This could be due to no records found or an issue during processing.")
                     else:
@@ -219,6 +218,19 @@ def show_consolidated_model_page():
                         st.json(response.json())
                 except Exception as e:
                     st.error(f"An unexpected error occurred: {e}")
+
+    # Display the results if they exist in the session state
+    if st.session_state.get("html_content"):
+        # Add a download button for the JSON data
+        st.download_button(
+            label="Download Data Model as JSON",
+            data=json.dumps(st.session_state.data_models, indent=2),
+            file_name=f"{st.session_state.app_name}_consolidated_model.json",
+            mime="application/json",
+        )
+        components.html(st.session_state.html_content, height=800)
+
+
 
 # --- Main App Navigation ---
 st.sidebar.title("Reverse Engineering Agent")

@@ -33,29 +33,42 @@ def create_data_model_from_bq(application_name: str) -> dict:
             if not parser_output:
                 continue
 
+            # Pre-process the parser output to remove bulky attributes, focusing on entities and relationships
+            try:
+                if isinstance(parser_output, str):
+                    parser_output_json = json.loads(parser_output)
+                else:
+                    parser_output_json = parser_output
+
+                skimmed_input = {
+                    "entities": [{"name": entity.get("entity_name")} for entity in parser_output_json.get("entities", [])],
+                    "relationships": parser_output_json.get("relationships", [])
+                }
+                input_for_prompt = json.dumps(skimmed_input, indent=2)
+            except (json.JSONDecodeError, TypeError):
+                # If parsing fails, use the raw output but it might be less effective
+                input_for_prompt = parser_output
+
             prompt = f"""
-            Given the following JSON data from a Teradata SQL script, extract the core data model.
+            Given the following JSON data from a SQL script analysis, identify the core entities and their relationships.
 
             **CRITICAL INSTRUCTIONS:**
-            1.  **IGNORE AUDIT/METADATA:** You MUST exclude any entities that appear to be for auditing, logging, or metadata purposes. Common patterns to ignore include tables with names containing `_LOG`, `_AUDIT`, `_ERR`, `_TMP`, `_WORK`, or volatile tables. Focus only on entities that represent core business concepts.
-            2.  **Extract Core Model:** Identify the primary entities, their attributes, and the relationships between them.
-            3.  **Structure Output:** Return a single, clean JSON object with the following structure. Do not include any explanations or surrounding text.
+            1.  **IGNORE AUDIT/METADATA:** Exclude entities for auditing, logging, or metadata (e.g., names with `_LOG`, `_AUDIT`, `_ERR`, `_TMP`, `_WORK`, or volatile tables). Focus on core business entities.
+            2.  **Extract Entities and Relationships:** Identify the primary entities and the relationships between them. Do NOT include attributes.
+            3.  **Structure Output:** Return a single, clean JSON object with only `entities` and `relationships`. Do not include explanations or surrounding text.
 
             **Output JSON Structure:**
             {{
               "entities": [
-                {{"name": "CoreBusinessEntityName", "attributes": ["attr1", "attr2", ...]}}
+                {{"name": "CoreBusinessEntityName"}}
               ],
               "relationships": [
                 {{"from": "EntityA", "to": "EntityB", "type": "relationship_type", "details": "..."}}
-              ],
-              "lineage": [
-                {{"source": "SourceEntity", "target": "TargetEntity", "transformation": "..."}}
               ]
             }}
 
             **Input JSON:**
-            {parser_output}
+            {input_for_prompt}
             """
             response = model.generate_content(prompt)
             response_text = response.text.strip().strip("` \n")
