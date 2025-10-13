@@ -62,51 +62,76 @@ def extract_sql_details(sql_query, application_name: str,sql_file_name:str):
     ##Change the prompt accordinly to extract various details
     
     extraction_prompt = f"""
-    Analyze the provided SQL script. Your task is to extract a structured **Data Model**. Focus ONLY on the **entities (tables)**, their **attributes (columns)**, and the **relationships (joins)** between them.
+You are an expert data lineage analysis agent. Your mission is to meticulously analyze the provided Teradata BTEQ script and extract a complete **Data Lineage and Transformation Map**. You must capture the static data model, the relationships between entities, and, most importantly, the dynamic flow of data and the business logic used to transform it.
 
-    **IMPORTANT INSTRUCTIONS:**
-    1.  **Focus on the Data Model:** Extract the static data model. Do NOT include procedural steps, transformation logic (like CASE statements), or operational commands (DELETE, COLLECT STATS).
-    2.  **Prioritize DDL for Schema:** Extract column names and data types from `CREATE TABLE` statements. This is the primary source for attribute information.
-    3.  **Identify Relationships:** Accurately capture all `JOIN` operations between entities, including the type of join and the columns used in the `ON` clause.
-    4.  **Infer Entities from Usage:** If a table is not explicitly created with a DDL statement, infer its existence and role (e.g., SOURCE_TABLE) from its usage in `FROM` or `JOIN` clauses.
+**CORE INSTRUCTIONS:**
 
-    Return the complete output as a single JSON object with the following structure.
+1.  **Parse the Entire Script**: Analyze all SQL commands but **ignore Teradata BTEQ control commands** (e.g., `.IF`, `.GOTO`, `.LABEL`, `.SET`, `.QUIT`).
+2.  **Extract Schema from DDL**: Identify all tables (entities). Prioritize `CREATE TABLE` statements for extracting attributes and data types. **Crucially, you must find and parse `CREATE TABLE` statements even if they are inside comment blocks (`/* ... */`)**.
+3.  **Infer Schema from DML**: If a table's `CREATE` statement is not present, infer its existence and attributes from its usage in `INSERT`, `UPDATE`, `SELECT`, or `JOIN` clauses. Mark its `creation_source` as 'Inferred'.
+4.  **Map Data Flows**: For **every** `INSERT ... SELECT` and `UPDATE` statement, create a detailed attribute-level lineage map. This map must show exactly how each attribute in the target table is populated.
+5.  **Identify Relationships**: Document all `JOIN` operations, specifying the join type, the entities involved, and the exact join conditions.
 
-    Output JSON:
+**OUTPUT FORMAT:**
 
+Return the complete analysis as a single, well-formed JSON object. Adhere strictly to the structure below.
+
+```json
+{{
+  "job_metadata": {{
+    "job_name": "Extract the job name, e.g., 'FR01 - ACCRUED INTEREST'",
+    "version": "Extract the version, e.g., 'FR01v10'",
+    "default_database": "The database set by the 'DATABASE' command, e.g., 'CC_COBRA'"
+  }},
+  "entities": [
     {{
-      "job_metadata": {{
-        "job_name": "Extracted name from script comments or file name",
-        "default_database": "The database set by the DATABASE command"
-      }},
-      "entities": [ // A list of all tables defined or referenced in the script.
+      "entity_name": "Fully qualified table name, e.g., CC_COBRA.WK_FR01_ACCRUED_INTEREST",
+      "entity_type": "WORK_TABLE, BASE_TABLE, VIEW, etc.",
+      "creation_source": "The source of the schema definition ('CREATE TABLE DDL' or 'Inferred from DML')",
+      "primary_key": ["List of columns from the UNIQUE PRIMARY INDEX, if available"],
+      "attributes": [
         {{
-          "entity_name": "The name of the table/entity (e.g., FR36_TXN_REPORT_SUMMARY)",
-          "database": "The database/project where the entity resides",
-          "entity_role": "Classification of the entity's use (e.g., TARGET_TABLE, SOURCE_TABLE, LOOKUP_TABLE)",
-          "creation_source": "The source of the schema definition (e.g., 'CREATE TABLE DDL', 'Inferred from SELECT')",
-          "primary_key": ["List of columns from the Unique Primary Index (UPI)"],
-          "attributes": [
-            {{
-              "attribute_name": "The column name (e.g., RETAIL_AM)",
-              "data_type": "The column's data type, extracted from DDL (e.g., DECIMAL(15,2))",
-              "is_nullable": "Boolean (true/false) based on DDL"
-            }}
-          ]
-        }}
-      ],
-      "relationships": [ // Describes how entities are joined in SELECT statements.
-        {{
-          "type": "The join type (e.g., INNER, LEFT, CROSS)",
-          "left_entity": "The full name of the table on the left side of the join",
-          "right_entity": "The full name of the table on the right side of the join",
-          "join_conditions": [
-            "A list of strings, where each string is a single join condition (e.g., 'A.ACCOUNT_KEY = B.ACCOUNT_KEY')"
-          ]
+          "attribute_name": "Column name, e.g., ACCRUED_INT",
+          "data_type": "Data type from DDL, e.g., DECIMAL(15,2)",
+          "is_nullable": "Boolean (true/false) based on DDL, default to true if inferred"
         }}
       ]
     }}
-
+  ],
+  "relationships": [
+    {{
+      "type": "The join type, e.g., LEFT, INNER, CROSS",
+      "left_entity": "The full name of the table on the left side",
+      "right_entity": "The full name of the table on the right side",
+      "join_conditions": [
+        "A list of string expressions from the ON clause, e.g., 'T1.AGRMNT_ID = T2.AGRMNT_ID'"
+      ]
+    }}
+  ],
+  "data_flows": [
+    {{
+      "flow_description": "A brief, human-readable summary, e.g., 'Populate the accrued interest staging table.'",
+      "operation_type": "The DML command, e.g., INSERT, UPDATE",
+      "target_entity": "The table being modified, e.g., CC_COBRA.WK_FR01_ACCRUED_INTEREST",
+      "source_entities": [
+          "List of all tables used for sourcing data, e.g., ['CC_COBRA.CC_ACCOUNT_FEATURE_DAILY', 'GDW_VIEWS.CREDIT_CARD_AGREEMENT']"
+      ],
+      "attribute_mappings": [
+        {{
+          "target_attribute": "The column in the target table, e.g., PART_NO",
+          "source_attributes": ["List of all source columns used in the derivation, e.g., ['T1.PLAN_NO']"],
+          "transformation_logic": "The exact SQL expression or logic used to derive the value. Preserve all details, including functions, CASE statements, and calculations. Example: 'CASE WHEN T1.PLAN_NO IN (10002,10003,10004,10005,10006) THEN 1 ... ELSE NULL END'"
+        }},
+        {{
+          "target_attribute": "ACCRUED_INT",
+          "source_attributes": ["T1.ACCRUED_INT"],
+          "transformation_logic": "SUM(T1.ACCRUED_INT) AS ACCRUED_INT"
+        }}
+      ]
+    }}
+  ]
+}}
+```
     SQL:
         {sql_query.replace("{","{{").replace("}","}}")}
 """
