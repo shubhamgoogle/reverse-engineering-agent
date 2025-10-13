@@ -26,7 +26,7 @@ def create_data_model_from_bq(application_name: str) -> dict:
         if not bq_records:
             return {"status": "success", "results": [], "message": "No records found in BigQuery for the application."}
 
-        model = GenerativeModel("gemini-2.5-pro")
+        model = GenerativeModel("gemini-2.5-flash")
 
         for record in bq_records:
             parser_output = record.get("parser_output")
@@ -44,6 +44,7 @@ def create_data_model_from_bq(application_name: str) -> dict:
                     "entities": [{"name": entity.get("entity_name")} for entity in parser_output_json.get("entities", [])],
                     "relationships": parser_output_json.get("relationships", [])
                 }
+                print(skimmed_input)
                 input_for_prompt = json.dumps(skimmed_input, indent=2)
             except (json.JSONDecodeError, TypeError):
                 # If parsing fails, use the raw output but it might be less effective
@@ -70,8 +71,15 @@ def create_data_model_from_bq(application_name: str) -> dict:
             **Input JSON:**
             {input_for_prompt}
             """
+
+            print("-----------------Prompt to Model-----------------")
+            print(prompt)
+            print("-------------------------------------------------")
+
             response = model.generate_content(prompt)
             response_text = response.text.strip().strip("` \n")
+            print("Model Response:")
+            print(response)
             if response_text.startswith("json"):
                 response_text = response_text[4:].strip()
 

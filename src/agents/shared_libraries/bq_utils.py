@@ -90,3 +90,35 @@ def fetch_from_bq(application_name:str):
     except Exception as e:
         print(f"An error occurred during the BigQuery fetch operation: {e}")
         return []
+
+def get_completed_sql_files_from_bq(application_name: str) -> list:
+    """Fetches distinct sql_file_name for a given application from BigQuery."""
+    print(f"Fetching completed file names from BigQuery for application: {application_name}...")
+    client = get_bq_client()
+    if not client:
+        print("BigQuery client not available. Skipping fetch.")
+        return []
+
+    config = Settings.get_settings()
+    table_id = f"{config.PROJECT_ID}.{config.REA_SQL_EXTRACTS_DATASET}.{config.REA_SQL_EXTRACTS_TABLE}"
+
+    query = f"""
+        SELECT DISTINCT sql_file_name
+        FROM `{table_id}`
+        WHERE application_name = @application_name
+    """
+
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("application_name", "STRING", application_name)
+        ]
+    )
+
+    try:
+        query_job = client.query(query, job_config=job_config)
+        completed_files = [row.sql_file_name for row in query_job.result()]
+        print(f"Found {len(completed_files)} completed files in BigQuery.")
+        return completed_files
+    except Exception as e:
+        print(f"An error occurred while fetching completed files: {e}")
+        return []

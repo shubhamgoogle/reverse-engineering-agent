@@ -10,7 +10,7 @@ import streamlit.components.v1 as components
 # Use an environment variable for the backend URL in production,
 # with a fallback to localhost for local development.
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
-API_BASE_URL = "https://reverse-engineering-agent-api-172009895677.us-central1.run.app"
+# API_BASE_URL = "https://reverse-engineering-agent-api-172009895677.us-central1.run.app"
 ANALYZE_API_URL = f"{API_BASE_URL}/analyze-sql"
 
 st.set_page_config(
@@ -47,14 +47,19 @@ def show_sql_analysis_page():
 
     if uploaded_files:
         st.header("Analysis Results")
+        total_files = len(uploaded_files)
+        st.info(f"Found {total_files} file(s) to process.")
+        
         # Iterate through each uploaded file
-        for uploaded_file in uploaded_files:
-            with st.expander(f"Processing: `{uploaded_file.name}`", expanded=True):
+        for i, uploaded_file in enumerate(uploaded_files, 1):
+            st.markdown("---")
+            st.write(f"**Processing file {i} of {total_files}: `{uploaded_file.name}`**")
+            with st.expander(f"Analysis details for `{uploaded_file.name}`", expanded=True):
                 if application_name: # Double-check application_name is present
-                    with st.spinner("Analyzing SQL..."):
+                    with st.spinner(f"Analyzing `{uploaded_file.name}`..."):
                         try:
                             # To read the file content, we use a BytesIO object and decode it
-                            stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
+                            stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8", errors="ignore"))
                             sql_query = stringio.read()
 
                             # Prepare the request payload, including application_name

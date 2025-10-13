@@ -6,8 +6,8 @@ import pandas as pd
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from src.agents.config.settings import Settings
-import uuid
-from src.agents.shared_libraries.bq_utils import insert_sql_extract_to_bq
+import uuid, json
+from src.agents.shared_libraries.bq_utils import insert_sql_extract_to_bq, get_completed_sql_files_from_bq
 import sys
 
 safety_settings = [
@@ -30,6 +30,15 @@ safety_settings = [
 ]
 
 def extract_sql_details(sql_query, application_name: str,sql_file_name:str):
+    # Check if the file has already been processed for this application
+    completed_files = get_completed_sql_files_from_bq(application_name)
+    print(completed_files)
+    if sql_file_name in completed_files:
+        message = f"Skipping already processed file '{sql_file_name}' for application '{application_name}'."
+        print(message)
+        # Return a clear message to the frontend
+        return {"status": "skipped", "message": message, "sql_file_name": sql_file_name}
+
     sql_id = str(uuid.uuid4())
     # try:
         
@@ -136,54 +145,3 @@ def extract_sql_details(sql_query, application_name: str,sql_file_name:str):
     )
     
     return parser_output
-
-def analyze_sqls():
-    queries_folder = "data/queries"
-    # Ensure the queries folder exists before trying to create files in it
-    os.makedirs(queries_folder, exist_ok=True)
-    completed_file = os.path.join(queries_folder, "completed_sql_files.txt")
-
-    # Ensure completed_sql_files.txt exists
-    if not os.path.exists(completed_file):
-        with open(completed_file, "w") as f:
-            pass  # Create the file if it doesn't exist
-
-    # Load completed SQL filenames
-    with open(completed_file, "r") as f:
-        completed_sql_files = set(line.strip() for line in f if line.strip())
-
-    sql_files = glob.glob(os.path.join(queries_folder, "*.sql"))
-    if sql_files:
-        for sql_file in sql_files:
-            sql_filename = os.path.basename(sql_file)
-            if sql_filename in completed_sql_files:
-                print(f"Skipping already processed file: {sql_filename}")
-                continue
-            try:
-                with open(sql_file, "r") as f:
-                    file_query = f.read()
-            except Exception as e:
-                with open(sql_file, "r", encoding='windows-1252') as f:
-                    file_query = f.read()
-            if file_query:
-                try:
-                    #extract_sql_details funcition call will store output in BQ
-                    sql_analysis_output = extract_sql_details(file_query)
-                    # print(sql_analysis_output)  # For debugging purposes
-                    with open(completed_file, "a") as f:
-                        f.write(sql_filename + "\n")
-                    # The 'with' statement handles closing the file, so f.close() is redundant.
-                except Exception as e:
-                    # If the exception object 'e' is a dictionary (e.g., from a custom error source),
-                    # it needs to be converted to a string for printing to avoid 'unhashable type: dict'.
-                    if isinstance(e, dict):
-                        print(f"Error for {sql_filename}: {json.dumps(e)}")
-                    else:
-                        print(f"Error for {sql_filename}: {e}")
-            else:
-                print(f"{sql_filename} is empty.")
-    else:
-        print("No SQL files found in the queries folder.")
-
-if __name__ == "__main__":
-    analyze_sqls()
