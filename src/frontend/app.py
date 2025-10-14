@@ -9,8 +9,8 @@ import streamlit.components.v1 as components
 # Configuration for the backend API
 # Use an environment variable for the backend URL in production,
 # with a fallback to localhost for local development.
-# API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
-API_BASE_URL = "https://reverse-engineering-agent-api-172009895677.us-central1.run.app"
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
+# API_BASE_URL = "https://reverse-engineering-agent-api-172009895677.us-central1.run.app"
 ANALYZE_API_URL = f"{API_BASE_URL}/analyze-sql"
 
 st.set_page_config(

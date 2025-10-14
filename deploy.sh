@@ -33,7 +33,7 @@ gcloud run deploy ${API_APP} \
   
 # --- Get Backend URL ---
 echo "Fetching backend URL..."
-API_URL=$(gcloud run services describe ${API_APP} --platform managed --region ${REGION} --format 'value(status.url)')
+API_URL="https://reverse-engineering-agent-api-172009895677.us-central1.run.app"
 echo "Backend URL: ${API_URL}"
 
 # --- Build Frontend Image ---
@@ -48,6 +48,6 @@ gcloud run deploy ${FRONTEND_APP} \
   --region ${REGION} \
   --allow-unauthenticated \
   --port 8501 \
-  --set-env-vars="API_BASE_URL=https://reverse-engineering-agent-api-172009895677.us-central1.run.app"
+  --set-env-vars="API_BASE_URL=${API_URL}"
 
 echo "Deployment complete."
