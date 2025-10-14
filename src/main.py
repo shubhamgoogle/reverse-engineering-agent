@@ -1,6 +1,6 @@
 import os
 import sys
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
 
 # Add project root to the Python path to allow absolute imports
@@ -8,6 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.agents.tools.sql_analysis import extract_sql_details
 from src.agents.tools.create_data_model import get_sql_json_from_bq, create_data_model_from_bq
+from src.agents.tools.create_excel_report import create_excel_report
 
 # Set a default config path before importing settings
 # This is crucial for the settings module to find the configuration file.
@@ -60,6 +61,27 @@ async def get_data_model(request: DataModelRequest):
         return data_model_result
     except Exception as e:
         # Catch potential exceptions and return a proper HTTP error
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/download-report", summary="Download full report as Excel")
+async def download_report(request: DataModelRequest):
+    """
+    Accepts an application name, fetches all its analysis reports from BigQuery,
+    and returns a consolidated Excel file. Each sheet in the file corresponds
+    to a single SQL file's markdown report.
+    """
+    try:
+        excel_bytes = create_excel_report(application_name=request.application_name)
+        
+        # Define headers for the file download response
+        headers = {
+            'Content-Disposition': f'attachment; filename="{request.application_name}_report.xlsx"'
+        }
+        
+        return Response(content=excel_bytes, 
+                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        headers=headers)
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/create-data-model", summary="Create a consolidated data model from BigQuery records")

@@ -20,6 +20,7 @@ streamlit = "^1.36.0"
 requests = "^2.32.3"
 pyarrow = "^16.1.0"
 pyvis = "*"
+openpyxl = "*"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0.0" # Example dev dependency

@@ -12,6 +12,7 @@ import streamlit.components.v1 as components
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
 # API_BASE_URL = "https://reverse-engineering-agent-api-172009895677.us-central1.run.app"
 ANALYZE_API_URL = f"{API_BASE_URL}/analyze-sql"
+DOWNLOAD_REPORT_URL = f"{API_BASE_URL}/download-report"
 
 st.set_page_config(
     page_title="SQL Reverse Engineering Agent",
@@ -288,11 +289,49 @@ def show_consolidated_model_page():
         )
         components.html(st.session_state.html_content, height=800)
 
+def show_download_report_page():
+    """
+    Displays a page to download a full report for an application as an Excel file.
+    """
+    st.title("Download Full Report")
+    st.write(
+        "Enter an application name to download a full report in Excel format. "
+        "The report will contain multiple sheets, each corresponding to a SQL file, "
+        "with data from the `parser_output_tables` column in BigQuery."
+    )
+
+    application_name = st.text_input(
+        "Enter Application Name",
+        key="download_report_app_name"
+    )
+
+    if st.button("Create Report"):
+        if not application_name:
+            st.warning("Please enter an Application Name.")
+        else:
+            with st.spinner(f"Generating report for `{application_name}`..."):
+                try:
+                    payload = {"application_name": application_name}
+                    response = requests.post(DOWNLOAD_REPORT_URL, json=payload)
+
+                    if response.status_code == 200:
+                        st.success("Report generated successfully!")
+                        st.download_button(
+                            label="Click to download Excel Report",
+                            data=response.content,
+                            file_name=f"{application_name}_report.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
+                    else:
+                        st.error(f"Error generating report. Status code: {response.status_code}")
+                        st.json(response.json())
+                except Exception as e:
+                    st.error(f"An unexpected error occurred: {e}")
 
 
 # --- Main App Navigation ---
 st.sidebar.title("Reverse Engineering Agent")
-page = st.sidebar.radio("Choose a page", ["SQL File Analysis", "View Data Model", "Generate Consolidated Data Model"])
+page = st.sidebar.radio("Choose a page", ["SQL File Analysis", "View Data Model", "Generate Consolidated Data Model", "Download Full Report"])
 
 if page == "SQL File Analysis":
     show_sql_analysis_page()
@@ -300,3 +339,5 @@ elif page == "View Data Model":
     show_data_model_page()
 elif page == "Generate Consolidated Data Model":
     show_consolidated_model_page()
+elif page == "Download Full Report":
+    show_download_report_page()
