@@ -14,7 +14,7 @@ def get_bq_client():
         print(f"Could not connect to BigQuery. Please check your GCP authentication. Error: {e}")
         return None
 
-def insert_sql_extract_to_bq(sql_id: str, sql_file_name: str, raw_sql_text: str, parser_output: dict,application_name:str, processing_status: str):
+def insert_sql_extract_to_bq(sql_id: str, sql_file_name: str, raw_sql_text: str, parser_output: dict,parser_output_tables:str,application_name:str, processing_status: str):
     """Inserts a record into the raw_sql_extracts table."""
     print("Inserting record into BigQuery...")
     client = get_bq_client()
@@ -34,6 +34,7 @@ def insert_sql_extract_to_bq(sql_id: str, sql_file_name: str, raw_sql_text: str,
             "processing_status": processing_status,
             "application_name":application_name,
             "inserted_at": datetime.now(timezone.utc).isoformat(),
+            "parser_output_tables" : parser_output_tables
         }
     ]
 
