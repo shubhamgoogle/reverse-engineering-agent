@@ -26,7 +26,7 @@ def create_data_model_from_bq(application_name: str) -> dict:
         if not bq_records:
             return {"status": "success", "results": [], "message": "No records found in BigQuery for the application."}
 
-        model = GenerativeModel("gemini-2.5-flash")
+        model = GenerativeModel("gemini-2.5-pro")
 
         for record in bq_records:
             parser_output = record.get("parser_output")
