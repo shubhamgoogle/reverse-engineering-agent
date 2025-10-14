@@ -54,10 +54,10 @@ def create_excel_report(application_name: str) -> bytes:
 
             for entity in entities:
                 summary_data.append({
-                    "sql_file_name": sql_file_name,
-                    "entity_name": entity.get("entity_name"),
-                    "entity_type": entity.get("entity_type"),
-                    "creation_source": entity.get("creation_source")
+                    "SQL File Name": sql_file_name,
+                    "Table Name": entity.get("entity_name"),
+                    "Operation Type": entity.get("entity_type"),
+                    "Creation Source": entity.get("creation_source")
                 })
         except (json.JSONDecodeError, TypeError):
             # If JSON is malformed or not present, skip this record for the summary
@@ -68,7 +68,7 @@ def create_excel_report(application_name: str) -> bytes:
         # Write the new Entity Summary sheet first
         if summary_data:
             df_summary = pd.DataFrame(summary_data)
-            df_summary.to_excel(writer, sheet_name="Entity Summary", index=False)
+            df_summary.to_excel(writer, sheet_name="Report Summary", index=False)
 
         # --- Existing logic to create a sheet per SQL file ---
         for record in report_data:
