@@ -41,8 +41,6 @@ def extract_sql_details(sql_query, application_name: str, sql_file_name: str):
         # Return a clear message to the frontend
         return {"status": "skipped", "message": message, "sql_file_name": sql_file_name}
 
-    print("Processing file:", sql_file_name)
-    print(sql_query)
     sql_id = str(uuid.uuid4())
     # try:
 
@@ -202,7 +200,6 @@ Provide a short, high-level summary of the script's overall purpose. Describe wh
         
 ```
 """
-    print("Extraction Prompt:", extraction_prompt_tbl)
     generation_config = {
         "temperature": 1,
         "top_p": 0.9,
@@ -213,7 +210,6 @@ Provide a short, high-level summary of the script's overall purpose. Describe wh
         safety_settings=safety_settings,
         stream=False,
     )
-    print("Response:", responses_tbl.text)
 
     # responses = model.generate_content(
     #     [extraction_prompt_json],
