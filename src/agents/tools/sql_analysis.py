@@ -76,6 +76,12 @@ def extract_sql_details(sql_query, application_name: str, sql_file_name: str):
 7.  Delimit by terminal semicolon only. Ignore any other semicolons.
 8. Ignore the code which are commented out like -- or /* */
 
+**ENTITY TYPE DEFINITIONS:**
+
+You must classify each table into one of the following three types for the `entity_type` field:
+* **SOURCE_TABLE**: A table that is only ever read from (SELECT or JOIN) and is **never** the subject of an INSERT, UPDATE, or DELETE operation within the script.
+* **TARGET_TABLE**: A table that is modified (`INSERT`, `UPDATE`, `DELETE`). It can be read from in other steps, but its primary role involves being written to. This is typically a final output or persistent log table.
+* **WORK_TABLE**: A table whose name begins with the prefix **WK_**. These are considered intermediate or staging tables, regardless of their usage.
 
 ---
 
