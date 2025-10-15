@@ -67,7 +67,7 @@ def fetch_from_bq(application_name:str):
     table_id = f"{config.PROJECT_ID}.{config.REA_SQL_EXTRACTS_DATASET}.{config.REA_SQL_EXTRACTS_TABLE}"
 
     query = f"""
-    SELECT sql_file_name,parser_output
+    SELECT sql_file_name,parser_output_tables
     FROM `{table_id}`
     WHERE application_name = @application_name
     ORDER BY inserted_at DESC

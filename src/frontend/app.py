@@ -174,10 +174,10 @@ def show_data_model_page():
         st.write(f"Found {len(results)} parser output(s).")
         for result in results:
             sql_file_name = result.get("sql_file_name", "Unknown File")
-            parser_output = result.get("parser_output")
-            with st.expander(f"Data Model from: `{sql_file_name}`", expanded=True):
+            parser_output_tables = result.get("parser_output_tables")
+            with st.expander(f"SQL Analysis for: `{sql_file_name}`", expanded=False):
                 # The parser_output from BQ might be a string-escaped JSON.
-                st.json(json.loads(parser_output) if isinstance(parser_output, str) else parser_output)
+                st.markdown(parser_output_tables if parser_output_tables else "No markdown report available.")
     elif st.session_state.view_results == []: # Handle case where fetch was successful but returned no data
         st.info(f"No data model found for application: `{application_name}`.")
 
@@ -331,11 +331,11 @@ def show_download_report_page():
 
 # --- Main App Navigation ---
 st.sidebar.title("Reverse Engineering Agent")
-page = st.sidebar.radio("Choose a page", ["SQL File Analysis", "View Data Model", "Generate Consolidated Data Model", "Download Full Report"])
+page = st.sidebar.radio("Choose a page", ["SQL File Analysis", "View SQL Analysis", "Generate Consolidated Data Model", "Download Full Report"])
 
 if page == "SQL File Analysis":
     show_sql_analysis_page()
-elif page == "View Data Model":
+elif page == "View SQL Analysis":
     show_data_model_page()
 elif page == "Generate Consolidated Data Model":
     show_consolidated_model_page()
