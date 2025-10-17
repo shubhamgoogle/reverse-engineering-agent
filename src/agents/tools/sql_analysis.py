@@ -233,22 +233,35 @@ Provide a short, high-level summary of the script's overall purpose. Describe wh
 """
 
     generation_config = {"temperature": 1, "top_p": 0.9}
-    responses_tbl = model.generate_content(
-        [extraction_prompt_tbl],
-        generation_config=generation_config,
-        safety_settings=safety_settings,
-        stream=False,
-    )
+    
+    report_markdown = ""
+    json_string = ""
 
-    responses_json = model.generate_content(
-        [extraction_prompt_json],
-        generation_config=generation_config,
-        safety_settings=safety_settings,
-        stream=False,
-    )
+    try:
+        # It's safer to wrap each API call in its own try/except block
+        # to handle potential failures, like timeouts or empty responses from the model.
+        responses_tbl = model.generate_content(
+            [extraction_prompt_tbl],
+            generation_config=generation_config,
+            safety_settings=safety_settings,
+            stream=False,
+        )
+        report_markdown = responses_tbl.text
 
-    report_markdown = responses_tbl.text
-    json_string = responses_json.text
+        responses_json = model.generate_content(
+            [extraction_prompt_json],
+            generation_config=generation_config,
+            safety_settings=safety_settings,
+            stream=False,
+        )
+        json_string = responses_json.text
+
+    except Exception as e:
+        # If the LLM call fails, create a structured error to send back.
+        # This prevents the frontend from getting an empty response.
+        error_payload = {"error": "LLM content generation failed", "details": str(e)}
+        # Return a dictionary that the FastAPI endpoint can serialize to JSON
+        return {"parser_output": error_payload, "report_markdown": ""}
 
     # Split the response into JSON and Markdown parts
 
