@@ -61,14 +61,14 @@ def extract_sql_details(sql_query, application_name: str, sql_file_name: str):
 
     ##Change the prompt accordinly to extract various details
 
-    extraction_prompt_tbl = f"""You are a meticulous and highly accurate data lineage analysis agent. Your task is to analyze the provided SQL script and generate **TWO distinct, comprehensive outputs in a single response**: a machine-readable JSON object AND a human-readable Markdown report.
+    extraction_prompt_json = f"""You are a meticulous and highly accurate data lineage analysis agent. Your task is to analyze the provided SQL script and generate **Comprehensive outputs in a single response**: a machine-readable JSON.
 
 **CORE ANALYSIS INSTRUCTIONS (Applies to BOTH outputs):**
 
 1.  **Analyze the Entire Script**: Process all SQL commands. You must **ignore vendor-specific control commands** (e.g., `.IF`, `.GOTO`, `.LABEL`, `.SET`, `.QUIT`).
 2.  **Identify Schema**: Find all table definitions. Prioritize `CREATE TABLE` statements for schema details,Infer table structures from DML if no DDL is present.
-3.  **Universal Alias Resolution (CRITICAL)**: Throughout your entire response, for both the JSON and the Markdown outputs, you must resolve all table aliases (e.g., `T1`, `A`, `B`) back to their full, original table names (e.g., `your_schema.your_table_name`).
-4.  **Rewrite Transformation Logic (CRITICAL)**: When populating the `transformation_logic` in the JSON and the `Transformation Logic` column in the Markdown table, you must **rewrite the original SQL expression**, replacing all aliases with their fully qualified table names. **Do not simply copy the original code snippet.**
+3.  **Universal Alias Resolution (CRITICAL)**: Throughout your entire response, for the JSON, you must resolve all table aliases (e.g., `T1`, `A`, `B`) back to their full, original table names (e.g., `your_schema.your_table_name`).
+4.  **Rewrite Transformation Logic (CRITICAL)**: When populating the `transformation_logic` in the JSON, you must **rewrite the original SQL expression**, replacing all aliases with their fully qualified table names. **Do not simply copy the original code snippet.**
 5.  **Focus on Data Movement**: Document every `INSERT` and `UPDATE` statement as a distinct data flow.
 6.  **Ground Your Analysis**: Your entire output must be based **exclusively** on the information present in the script provided. Do not invent or infer any information.
 7.  Delimit by terminal semicolon only. Ignore any other semicolons.
@@ -85,9 +85,7 @@ You must classify each table into one of the following three types for the `enti
 
 **OUTPUT STRUCTURE:**
 
-Your response must contain two parts, presented in this exact order:
-
-**Part 1: Machine-Readable JSON Data Map**
+** Machine-Readable JSON Data Map**
 *(Enclose this entire section in a single ```json code block)*
 
 ```json
@@ -142,8 +140,41 @@ Your response must contain two parts, presented in this exact order:
 }}
 ````
 
-**Part 2: Human-Readable Markdown Report**
-*(Begin this section immediately after the JSON code block)*
+**SQL SCRIPT TO ANALYZE:**
+
+```sql
+    SQL:
+        {sql_query}
+        
+```
+"""
+
+    extraction_prompt_tbl = f"""You are a meticulous and highly accurate data lineage analysis agent. Your task is to analyze the provided SQL script and generate **One, comprehensive output in a single response**: a human-readable Markdown report.
+
+**CORE ANALYSIS INSTRUCTIONS (Applies to BOTH outputs):**
+
+1.  **Analyze the Entire Script**: Process all SQL commands. You must **ignore vendor-specific control commands** (e.g., `.IF`, `.GOTO`, `.LABEL`, `.SET`, `.QUIT`).
+2.  **Identify Schema**: Find all table definitions. Prioritize `CREATE TABLE` statements for schema details,Infer table structures from DML if no DDL is present.
+3.  **Universal Alias Resolution (CRITICAL)**: Throughout your entire response, you must resolve all table aliases (e.g., `T1`, `A`, `B`) back to their full, original table names (e.g., `your_schema.your_table_name`).
+4.  **Rewrite Transformation Logic (CRITICAL)**: When populating the `Transformation Logic` column in the Markdown table, you must **rewrite the original SQL expression**, replacing all aliases with their fully qualified table names. **Do not simply copy the original code snippet.**
+5.  **Focus on Data Movement**: Document every `INSERT` and `UPDATE` statement as a distinct data flow.
+6.  **Ground Your Analysis**: Your entire output must be based **exclusively** on the information present in the script provided. Do not invent or infer any information.
+7.  Delimit by terminal semicolon only. Ignore any other semicolons.
+8. Ignore the code which are commented out like -- or /* */
+
+**ENTITY TYPE DEFINITIONS:**
+
+You must classify each table into one of the following three types for the `entity_type` field:
+* **SOURCE_TABLE**: A table that is only ever read from (SELECT or JOIN) and is **never** the subject of an INSERT, UPDATE, or DELETE operation within the script.
+* **TARGET_TABLE**: A table that is modified (`INSERT`, `UPDATE`, `DELETE`). It can be read from in other steps, but its primary role involves being written to. This is typically a final output or persistent log table.
+* **WORK_TABLE**: A table whose name begins with the prefix **WK_**. These are considered intermediate or staging tables, regardless of their usage.
+
+---
+
+**OUTPUT STRUCTURE:**
+
+
+**Human-Readable Markdown Report**
 
 # Data Lineage Report: [Job Name]
 
@@ -200,10 +231,8 @@ Provide a short, high-level summary of the script's overall purpose. Describe wh
         
 ```
 """
-    generation_config = {
-        "temperature": 1,
-        "top_p": 0.9,
-    }
+
+    generation_config = {"temperature": 1, "top_p": 0.9}
     responses_tbl = model.generate_content(
         [extraction_prompt_tbl],
         generation_config=generation_config,
@@ -211,26 +240,17 @@ Provide a short, high-level summary of the script's overall purpose. Describe wh
         stream=False,
     )
 
-    # responses = model.generate_content(
-    #     [extraction_prompt_json],
-    #     generation_config=generation_config,
-    #     safety_settings=safety_settings,
-    #     stream=False,
-    # )
-    # response
-    # response_json = responses_tbl.text.split("# Data Lineage Report")[0].strip()
-    # response_tbl = responses_tbl.text.split("# Data Lineage Report")[1].strip()
+    responses_json = model.generate_content(
+        [extraction_prompt_json],
+        generation_config=generation_config,
+        safety_settings=safety_settings,
+        stream=False,
+    )
 
-    # print(response_json)
-    # print(response_tbl)
-
-    full_response_text = responses_tbl.text
+    report_markdown = responses_tbl.text
+    json_string = responses_json.text
 
     # Split the response into JSON and Markdown parts
-    if "# Data Lineage Report" in full_response_text:
-        parts = full_response_text.split("# Data Lineage Report", 1)
-        json_string = parts[0]
-        report_markdown = "# Data Lineage Report" + parts[1]
 
     # Clean up the JSON string
     json_string = json_string.strip().lstrip("```json").lstrip("```").rstrip("```")
@@ -259,5 +279,5 @@ Provide a short, high-level summary of the script's overall purpose. Describe wh
 
     return {
         "parser_output": parser_output,
-        "report_markdown": report_markdown if report_markdown else full_response_text,
+        "report_markdown": report_markdown,
     }
